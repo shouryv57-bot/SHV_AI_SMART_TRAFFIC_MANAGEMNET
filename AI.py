@@ -42,17 +42,14 @@ model = YOLO('rtdetr-l.pt')
 VEHICLE_CLASSES = [2, 3, 5, 7] # Car, Motorcycle, Bus, Truck
 
 # 3. Create 4 Lane instances
-# Note: Update polygon coordinates for Lane C & D to match your video perspective
 lanes = [
-    Lane("Lane A", [[502, 202], [590, 110], [465, 0], [250, 0]], (255, 0, 0)),        # Blue
+    Lane("Lane A", [[502, 202], [590, 110], [465, 0], [250, 0]], (255, 0, 0)),      # Blue
     Lane("Lane B", [[830, 230], [930, 320], [1250, 0], [1030, 0]], (0, 255, 255)),  # Yellow
-    Lane("Lane C", [[750, 620], [833, 525], [1080, 720], [874, 719]], (0, 255, 0)),      # Green
-    Lane("Lane D", [[455, 460], [518, 525], [300, 720], [125, 720]], (255, 0, 255))  # Magenta
+    Lane("Lane C", [[750, 620], [833, 525], [1080, 720], [874, 719]], (0, 255, 0)), # Green
+    Lane("Lane D", [[455, 460], [518, 525], [300, 720], [125, 720]], (255, 0, 255)) # Magenta
 ]
 
 # 4. State Machine Parameters
-MIN_GREEN_TIME = 20.0
-VEHICLE_THRESHOLD = 10
 current_green_idx = 0  # Start with Lane A
 green_start_time = time.time()
 
@@ -67,6 +64,7 @@ if not cap.isOpened():
 def click_event(event, x, y, flags, params):
     if event == cv2.EVENT_LBUTTONDOWN:
         print(f"Clicked point: [{x}, {y}]")
+
 cv2.namedWindow("Smart AI Traffic Light System")
 cv2.setMouseCallback("Smart AI Traffic Light System", click_event)
 
@@ -102,28 +100,28 @@ while cap.isOpened():
                     lane.count += 1
                     break
 
-    # Timer & Switch Logic (Highest Traffic Priority)
+    # ⏱️ Dynamic Green Timer Logic
+    # 15 seconds if active lane has < 8 vehicles; 20 seconds if >= 8 vehicles
+    active_lane_count = lanes[current_green_idx].count
+    required_green_time = min(130.0, 10.0 + (lanes[current_green_idx].count * 2.0))
+
+    # 🔄 Clockwise Signal Switching Logic
     elapsed_time = time.time() - green_start_time
 
-    if elapsed_time >= MIN_GREEN_TIME:
-        # Find waiting lane with the highest vehicle count
-        waiting_lane_indices = [i for i in range(len(lanes)) if i != current_green_idx]
-        highest_count_idx = max(waiting_lane_indices, key=lambda i: lanes[i].count)
+    if elapsed_time >= required_green_time:
+        # Move to the next lane in sequence (0 -> 1 -> 2 -> 3 -> 0)
+        current_green_idx = (current_green_idx + 1) % len(lanes)
+        green_start_time = time.time()
+        elapsed_time = 0.0
+        print(f"🚦 Switching light to {lanes[current_green_idx].name}!")
 
-        if lanes[highest_count_idx].count >= VEHICLE_THRESHOLD:
-            current_green_idx = highest_count_idx
-            green_start_time = time.time()
-            elapsed_time = 0.0
-            print(f"🚦 Switching light to {lanes[current_green_idx].name}!")
-
-    
     # Display HUD dynamically for all lanes
     for idx, lane in enumerate(lanes):
         cv2.putText(frame, f"{lane.name} Count: {lane.count}", (30, 40 + idx * 35), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, lane.color, 2)
 
     y_offset = 40 + len(lanes) * 35
-    cv2.putText(frame, f"Timer: {int(elapsed_time)}s / {int(MIN_GREEN_TIME)}s", (30, y_offset), 
+    cv2.putText(frame, f"Timer: {int(elapsed_time)}s / {int(required_green_time)}s", (30, y_offset), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     cv2.putText(frame, f"ACTIVE GREEN: {lanes[current_green_idx].name}", (30, y_offset + 40), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 3)
