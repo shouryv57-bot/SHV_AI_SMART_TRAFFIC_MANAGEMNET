@@ -43,7 +43,7 @@ lanes = [
 
 current_green_idx = 0  # Start with Lane A
 green_start_time = time.time()
-video_path = r"C:\Users\shour\Downloads\3063475-uhd_3840_2160_30fps.mp4"
+video_path = r"C:\coding\.vscode\IBMPROJECT\67MBVIDEO.mp4"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
